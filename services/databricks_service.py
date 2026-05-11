@@ -56,3 +56,32 @@ def query(sql: str) -> dict:
         return {"error": "databricks-sql-connector not installed. Run: pip install databricks-sql-connector"}
     except Exception as e:
         return {"error": str(e)}
+
+
+def get_schema() -> str:
+    params = get_connection_params()
+    if not params["server_hostname"] or not params["http_path"] or not params["access_token"]:
+        return ""
+
+    try:
+        from databricks import sql as dsql
+
+        with dsql.connect(
+            server_hostname=params["server_hostname"],
+            http_path=params["http_path"],
+            access_token=params["access_token"],
+        ) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("SHOW TABLES")
+                tables = cursor.fetchall()
+                schema_parts = []
+                for t in tables:
+                    db = t[0]
+                    table_name = t[1]
+                    cursor.execute(f"DESCRIBE {db}.{table_name}")
+                    cols = cursor.fetchall()
+                    col_lines = [f"  - {c[0]} ({c[1]})" for c in cols]
+                    schema_parts.append(f"Table: {db}.{table_name}\n" + "\n".join(col_lines))
+                return "\n\n".join(schema_parts) if schema_parts else "No tables found."
+    except Exception as e:
+        return f"Schema error: {e}"

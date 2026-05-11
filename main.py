@@ -7,6 +7,7 @@ from routers.ask import router as ask_router
 from routers.chat import router as chat_router
 from routers.documents import router as documents_router
 from routers.databricks import router as databricks_router
+from routers.databricks_ask import router as databricks_ask_router
 
 app = FastAPI()
 
@@ -25,6 +26,7 @@ app.include_router(ask_router, prefix="/api")
 app.include_router(chat_router, prefix="/api")
 app.include_router(documents_router, prefix="/api")
 app.include_router(databricks_router, prefix="/api")
+app.include_router(databricks_ask_router, prefix="/api")
 
 @app.get("/")
 def root():
