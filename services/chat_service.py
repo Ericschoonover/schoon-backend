@@ -72,21 +72,17 @@ def search_web(query: str, max_results: int = 5) -> str:
 
 
 async def stream_response(message: str, history: list | None = None, mode: str = "regular"):
-    web_results = search_web(message)
     try:
         client = get_client()
     except RuntimeError:
-        yield "I'm not fully configured yet. Set an OPENAI_API_KEY in backend/.env so I can give you proper answers. For now, here's what I found:\n\n"
-        yield web_results
+        yield "I'm not fully configured yet."
         return
-
-    context = f"{message}\n\nSome reference info:\n{web_results}" if web_results and not web_results.startswith("No search results") and not web_results.startswith("Web search failed") else message
 
     msgs = [{"role": "system", "content": get_system_prompt(mode)}]
     if history:
         for h in history:
             msgs.append({"role": h["role"], "content": h["content"]})
-    msgs.append({"role": "user", "content": context})
+    msgs.append({"role": "user", "content": message})
 
     stream = client.chat.completions.create(
         model=MODEL,

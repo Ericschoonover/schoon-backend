@@ -58,7 +58,19 @@ def query(sql: str) -> dict:
         return {"error": str(e)}
 
 
-def get_schema() -> str:
+_schema_cache: str | None = None
+_schema_cache_time: float = 0
+_SCHEMA_TTL = 300
+
+
+def get_schema(force: bool = False) -> str:
+    global _schema_cache, _schema_cache_time
+    import time
+
+    now = time.time()
+    if not force and _schema_cache and (now - _schema_cache_time) < _SCHEMA_TTL:
+        return _schema_cache
+
     params = get_connection_params()
     if not params["server_hostname"] or not params["http_path"] or not params["access_token"]:
         return ""
@@ -82,6 +94,9 @@ def get_schema() -> str:
                     cols = cursor.fetchall()
                     col_lines = [f"  - {c[0]} ({c[1]})" for c in cols]
                     schema_parts.append(f"Table: {db}.{table_name}\n" + "\n".join(col_lines))
-                return "\n\n".join(schema_parts) if schema_parts else "No tables found."
+                result = "\n\n".join(schema_parts) if schema_parts else "No tables found."
+                _schema_cache = result
+                _schema_cache_time = now
+                return result
     except Exception as e:
         return f"Schema error: {e}"
