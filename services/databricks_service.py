@@ -84,28 +84,24 @@ def get_schema(force: bool = False) -> str:
             access_token=params["access_token"],
         ) as conn:
             with conn.cursor() as cursor:
-                cursor.execute("SHOW CATALOGS")
-                catalogs = [r[0] for r in cursor.fetchall()]
+                cursor.execute("SELECT current_catalog()")
+                catalog = cursor.fetchone()[0]
+
+                target_schemas = ["vscos", "default"]
+
                 schema_parts = []
-                for catalog in catalogs:
-                    if catalog == "system":
-                        continue
+                for schema in target_schemas:
                     try:
-                        cursor.execute(f"SHOW SCHEMAS IN {catalog}")
-                        schemas = [r[0] for r in cursor.fetchall()]
-                        for schema in schemas:
+                        cursor.execute(f"SHOW TABLES IN {catalog}.{schema}")
+                        tables = cursor.fetchall()
+                        for t in tables[:10]:
+                            table_name = t[1]
+                            full = f"{catalog}.{schema}.{table_name}"
                             try:
-                                cursor.execute(f"SHOW TABLES IN {catalog}.{schema}")
-                                tables = cursor.fetchall()
-                                for t in tables:
-                                    table_name = t[1]
-                                    try:
-                                        cursor.execute(f"DESCRIBE {catalog}.{schema}.{table_name}")
-                                        cols = cursor.fetchall()
-                                        col_lines = [f"  - {c[0]} ({c[1]})" for c in cols]
-                                        schema_parts.append(f"Table: {catalog}.{schema}.{table_name}\n" + "\n".join(col_lines))
-                                    except Exception:
-                                        pass
+                                cursor.execute(f"DESCRIBE {full}")
+                                cols = cursor.fetchall()
+                                col_lines = [f"  - {c[0]} ({c[1]})" for c in cols[:20]]
+                                schema_parts.append(f"Table: {full}\n" + "\n".join(col_lines))
                             except Exception:
                                 pass
                     except Exception:
