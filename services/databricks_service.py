@@ -84,16 +84,32 @@ def get_schema(force: bool = False) -> str:
             access_token=params["access_token"],
         ) as conn:
             with conn.cursor() as cursor:
-                cursor.execute("SHOW TABLES")
-                tables = cursor.fetchall()
+                cursor.execute("SHOW CATALOGS")
+                catalogs = [r[0] for r in cursor.fetchall()]
                 schema_parts = []
-                for t in tables:
-                    db = t[0]
-                    table_name = t[1]
-                    cursor.execute(f"DESCRIBE {db}.{table_name}")
-                    cols = cursor.fetchall()
-                    col_lines = [f"  - {c[0]} ({c[1]})" for c in cols]
-                    schema_parts.append(f"Table: {db}.{table_name}\n" + "\n".join(col_lines))
+                for catalog in catalogs:
+                    if catalog == "system":
+                        continue
+                    try:
+                        cursor.execute(f"SHOW SCHEMAS IN {catalog}")
+                        schemas = [r[0] for r in cursor.fetchall()]
+                        for schema in schemas:
+                            try:
+                                cursor.execute(f"SHOW TABLES IN {catalog}.{schema}")
+                                tables = cursor.fetchall()
+                                for t in tables:
+                                    table_name = t[1]
+                                    try:
+                                        cursor.execute(f"DESCRIBE {catalog}.{schema}.{table_name}")
+                                        cols = cursor.fetchall()
+                                        col_lines = [f"  - {c[0]} ({c[1]})" for c in cols]
+                                        schema_parts.append(f"Table: {catalog}.{schema}.{table_name}\n" + "\n".join(col_lines))
+                                    except Exception:
+                                        pass
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
                 result = "\n\n".join(schema_parts) if schema_parts else "No tables found."
                 _schema_cache = result
                 _schema_cache_time = now
